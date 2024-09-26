@@ -1,0 +1,519 @@
+<!DOCTYPE html> 
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EPU</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Sarabun', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #header {
+            display: flex;
+            align-items: center;
+            background-color: #ffffff;
+            padding: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            border-bottom: 1px solid #ddd;
+        }
+        #header img {
+            height: 40px;
+            margin-right: 10px;
+        }
+        #header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 700;
+            color: #333;
+        }
+        #map {
+            flex: 1;
+            height: 100%;
+            width: 100%;
+        }
+        #search-container {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #ffffff;
+            border-radius: 25px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            z-index: 1000;
+            max-width: calc(100% - 20px);
+            width: 300px;
+        }
+        #search-box {
+            border: none;
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 25px;
+            outline: none;
+            flex: 1;
+            margin-right: 5px;
+        }
+        #search-icon {
+            background: #4caf50;
+            border: none;
+            border-radius: 25px;
+            padding: 10px;
+            cursor: pointer;
+            font-size: 18px;
+            color: #ffffff;
+        }
+        #results {
+            position: fixed;
+            top: 60px;
+            right: 10px;
+            max-height: calc(100vh - 70px);
+            overflow-y: auto;
+            width: 300px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            padding: 10px;
+            z-index: 1000;
+        }
+        .result-item {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fafafa;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .result-item:hover {
+            background-color: #e0f2f1;
+        }
+        .details {
+            position: fixed;
+            top: 60px;
+            right: 320px;
+            width: 350px;
+            max-height: calc(100vh - 70px);
+            overflow-y: auto;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #ffffff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            display: none;
+        }
+        #back-to-map {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: #f44336;
+            border: none;
+            border-radius: 25px;
+            padding: 10px 20px;
+            color: #ffffff;
+            cursor: pointer;
+            font-size: 16px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            z-index: 1000;
+            display: none;
+        }
+        /* สไตล์สำหรับฟอร์มแก้ไข */
+        #edit-form {
+            position: fixed;
+            top: 60px;
+            right: 680px;
+            width: 350px;
+            max-height: calc(100vh - 70px);
+            overflow-y: auto;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #ffffff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            display: none;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: bold;
+        }
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        #edit-form button {
+            padding: 10px 15px;
+            margin-right: 10px;
+            border: none;
+            background-color: #007BFF;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #edit-form button:hover {
+            background-color: #0056b3;
+        }
+        @media (max-width: 768px) {
+            #search-container {
+                width: calc(100% - 20px);
+                right: 10px;
+                top: 10px;
+                position: relative;
+            }
+            #results {
+                position: relative;
+                top: 0;
+                right: 0;
+                width: 100%;
+                max-height: 300px;
+            }
+            .details, #edit-form {
+                position: relative;
+                top: 0;
+                right: 0;
+                width: 100%;
+                max-height: 300px;
+                display: block;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="header">
+            <img src="data:image/png;base64,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" alt="data:image/png;base64,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">
+            <h1>ศูนย์ปฏิบัติการพิทักษ์สิ่งแวดล้อม EPU</h1>
+        </div>
+        <div id="search-container">
+            <input type="text" id="search-box" placeholder="พิมพ์ชื่อบริษัทหรือที่ตั้งเพื่อค้นหา...">
+            <button id="search-icon">🔍</button>
+        </div>
+        <div id="map"></div>
+        <div id="results"></div>
+        <div id="details" class="details"></div>
+        <div id="edit-form">
+            <h2>แก้ไขข้อมูลพื้นที่</h2>
+            <form id="editAreaForm">
+                <!-- บริษัท -->
+                <div class="form-group">
+                    <label for="edit-name">ชื่อบริษัท:</label>
+                    <input type="text" id="edit-name" name="name">
+                </div>
+                <!-- ที่ตั้ง -->
+                <div class="form-group">
+                    <label for="edit-province">ที่ตั้ง (จังหวัด):</label>
+                    <input type="text" id="edit-province" name="province">
+                </div>
+                <!-- ประเภทโรงงาน -->
+                <div class="form-group">
+                    <label for="edit-factoryType">ประเภทโรงงาน:</label>
+                    <input type="text" id="edit-factoryType" name="factoryType">
+                </div>
+                <!-- สภาพปัญหา -->
+                <div class="form-group">
+                    <label for="edit-issue">สภาพปัญหา:</label>
+                    <textarea id="edit-issue" name="issue"></textarea>
+                </div>
+                <!-- สถานการณ์ -->
+                <div class="form-group">
+                    <label for="edit-situation">สถานการณ์:</label>
+                    <textarea id="edit-situation" name="situation"></textarea>
+                </div>
+                <!-- ปุ่มบันทึก -->
+                <button type="button" onclick="saveData()">บันทึก</button>
+                <button type="button" onclick="cancelEdit()">ยกเลิก</button>
+            </form>
+        </div>
+        <button id="back-to-map">กลับไปที่แผนที่เต็ม</button>
+    </div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        var map = L.map('map').setView([15.8700, 100.9925], 6);
+        var defaultBounds = [[5.5, 97.5], [20.5, 105.7]];
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        map.setMaxBounds(defaultBounds);
+        map.setMinZoom(6);
+        map.setMaxZoom(12);
+
+        map.on('drag', function() {
+            map.panInsideBounds(defaultBounds, { animate: false });
+        });
+
+        var locations = [
+            {
+                "province": "พระนครศรีอยุธยา",
+                "name": "เอกอุทัย สาขาอุทัย",
+                "coords": [14.350933, 100.701149],
+                "factoryType": "รง.105 และ 106",
+                "issue": "ลักลอบทิ้งกากอุตสาหกรรม",
+                "situation": "กรอ.สั่งปิดโรงงานถูกเพิกถอนใบอนุญาต"
+            },
+            {
+                "province": "ลพบุรี",
+                "name": "ดีลัง พัฒนานิคม ลพบุรี",
+                "coords": [14.875033, 100.896600],
+                "info": "<b>บริษัท:</b> ดีลัง พัฒนานิคม ลพบุรี<br><b>ที่ตั้ง:</b> ลพบุรี<br><b>ประเภทโรงงาน:</b> พื้นที่เอกชน<br><b>สภาพปัญหา:</b> ลักลอบทิ้งกากของเสียอุตสาหกรรมในพื้นที่เอกชน<br><b>สถานการณ์:</b> คพ.แจ้งผลการตรวจสอบถึงจังหวัดลพบุรี กรอ.แล้ว"
+            },
+            {
+                "province": "พระนครศรีอยุธยา",
+                "name": "ข้าวเม่า อุทัย อยุธยา",
+                "coords": [14.401562, 100.652506],
+                "info": "<b>บริษัท:</b> ข้าวเม่า อุทัย อยุธยา<br><b>ที่ตั้ง:</b> พระนครศรีอยุธยา<br><b>ประเภทโรงงาน:</b> พื้นที่ตำบลข้าวเม่า อำเภออุทัย<br><b>สภาพปัญหา:</b> ลักลอบทิ้งกากอุตสาหกรรม<br><b>สถานการณ์:</b> ศูนย์ปฏิบัติการพิทักษ์สวล.ได้เก็บตัวอย่างน้ำ และดินบริเวณพื้นที่ลักลอบทิ้ง ส่งวิเคราะห์ห้องปฏิบัติการ หากแล้วเสร็จจะแจ้งผลการตรวจสอบให้หน่วยงานที่เกี่ยวข้องทราบ."
+            },
+            {
+                "province": "พระนครศรีอยุธยา",
+                "name": "หนองเจ๊ก ภาชี",
+                "coords": [14.465277, 100.69774],
+                "info": "<b>บริษัท:</b> หนองเจ๊ก ภาชี<br><b>ที่ตั้ง:</b> พระนครศรีอยุธยา<br><b>ประเภทโรงงาน:</b> พื้นที่บริเวณบ้านหนองเจ๊ก ตำบลไผ่ล้อม ภาชี อยุธยา<br><b>สภาพปัญหา:</b> ลักลอบทิ้งน้ำเสีย<br><b>สถานการณ์:</b> ศูนย์ปฏิบัติการพิทักษ์สวล.ได้เก็บตัวอย่างน้ำบ่อดินที่มีการลักลอบทิ้งน้ำเสียและบ่อน้ำเอกชนที่อยู่ใกล้เคียงส่งวิเคราะห์ห้องปฏิบัติการ หากแล้วเสร็จจะแจ้งผลการตรวจสอบให้หน่วยงานที่เกี่ยวข้องทราบ."
+            },
+            {
+                "province": "สระบุรี",
+                "name": "นิคม แก่งคอย ",
+                "coords": [14.37290, 100.59510],
+                "info": "<b>บริษัท:</b> นิคม แก่งคอย<br><b>ที่ตั้ง:</b> สระบุรี<br><b>ประเภทโรงงาน:</b> นิคมอุตสาหกรรม<br><b>สภาพปัญหา:</b> ลักลอบทิ้งกากอุตสาหกรรม<br><b>สถานการณ์:</b> คพ.ลงพื้นที่และแจ้งผลการตรวจสอบไปยังหน่วยงานที่เกี่ยวข้องแล้ว."
+            },
+            {
+                "province": "ฉะเชิงเทรา",
+                "name": "อ่างเก็บน้ำ ลุ่มน้ำโจนที่16",
+                "coords": [13.4400, 101.3],
+                "info": "<b>บริษัท:</b> อ่างเก็บน้ำ ลุ่มน้ำโจนที่16<br><b>ที่ตั้ง:</b> ฉะเชิงเทรา<br><b>ประเภทโรงงาน:</b> อ่างเก็บน้ำ ลุ่ทน้ำโจนที่16<br><b>สภาพปัญหา:</b> ลักลอบทิ้งกากอุตสาหกรรมลงในแหล่งน้ำ<br><b>สถานการณ์:</b> ศาลสั่งโรงงานชดใช้ 1,770 บาท ปล่อยสารเคมีปนเปื้อนซึมผ่านชั้นน้ำใต้ดิน ลงสู่อ่างเก็บน้ำโจนแห่งที่ 16"
+            },
+            {
+                "province": "ระยอง",
+                "name": "วินโพรเสส",
+                "coords": [12.500, 101.2],
+                "info": "<b>บริษัท:</b> วินโพรเสส<br><b>ที่ตั้ง:</b> ระยอง<br><b>ประเภทโรงงาน:</b> ร.ง.4<br><b>สภาพปัญหา:</b> การรั่วไหลและแพร่กระจายมลพิษจากโรงงาน<br><b>สถานการณ์:</b> อยู่ระหว่างการจัดการกากอุตสาหกรรมโดยกรมโรงงาน"
+            },
+            {
+                "province": "นครราชสีมา",
+                "name": "เอกอุทัย สาขากลางดง",
+                "coords": [14.64092, 101.293],
+                "info": "<b>บริษัท:</b> เอกอุทัยสาขากลางดง<br><b>ที่ตั้ง:</b> นครราชสีมา<br><b>ประเภทโรงงาน:</b> ร.ง.105 และ 106 <br><b>สภาพปัญหา:</b> ลักลอบทิ้งกากของเสียอุตสาหกรรม<br><b>สถานการณ์:</b> กรมทรัพยากรน้ำบาดาลจะตรวจสอบคุณภาพดินและน้ำใต้ดิน จะรวบรวมข้อมูลและชี้แจ้งข้อมูลต่อไป"
+            },
+            {
+                "province": "เพชรบูรณ์",
+                "name": "เอกอุทัย สาขาศรีเทพ",
+                "coords": [15.375799, 101.134654],
+                "info": "<b>บริษัท:</b> เอกอุทัยสาขาศรีเทพ<br><b>ที่ตั้ง:</b> เพชรบูรณ์<br><b>ประเภทโรงงาน:</b> ร.ง.105 และ 106 <br><b>สภาพปัญหา:</b> กลิ่นเหม็น สารปนเปื้อนในดิน<br><b>สถานการณ์:</b> กตพ/คพ.ดำเนินการตรวจวัดสารระเหยอินทรีย์และอนินทรีย์บริเวณปล่องระบายอากาศ"
+            },
+            {
+                "province": "ราชบุรี",
+                "name": "แวกซ์ กาเบจ",
+                "coords": [13.33, 99.35],
+                "info": "<b>บริษัท:</b> แวกซ์ กาเบจ<br><b>ที่ตั้ง:</b> ราชบุรี<br><b>ประเภทโรงงาน:</b> n/a <br><b>สภาพปัญหา:</b> การรั่วไหลของน้ำเสีย<br><b>สถานการณ์:</b> n/a"
+            },
+            {
+                "province": "ปราจีนบุรี",
+                "name": "ลาดตะเคียน กบินทร์บุรี",
+                "coords": [13.4649, 101.41],
+                "info": "<b>บริษัท:</b> ลาดตะเคียน<br><b>ที่ตั้ง:</b> ปราจีนบุรี<br><b>ประเภทโรงงาน:</b> n/a <br><b>สภาพปัญหา:</b> ลักลอบทิ้งกากของเสียอุตสาหกรรม<br><b>สถานการณ์:</b> n/a"
+            },
+            {
+                "province": "นครปฐม",
+                "name": "ห้วยด้วน ดอนตูม",
+                "coords": [13.5937, 100.0535],
+                "info": "<b>บริษัท:</b> บ่อดินมิตรแท้ ดอนตูม นครปฐม<br><b>ที่ตั้ง:</b> นครปฐม<br><b>ประเภทโรงงาน:</b> n/a <br><b>สภาพปัญหา:</b> ลักลอบทิ้งกากบริเวณบ่อดิน<br><b>สถานการณ์:</b> n/a"
+            },
+            {
+                "province": "ฉะเชิงเทรา",
+                "name": "แปลงยาว ฉะเชิงเทรา",
+                "coords": [13.6191, 101.3722],
+                "info": "<b>บริษัท:</b> แปลงยาว ฉะเชิงเทรา<br><b>ที่ตั้ง:</b> ฉะเชิงเทรา<br><b>ประเภทโรงงาน:</b> พื้นที่เอกชน <br><b>สภาพปัญหา:</b> ลักลอบทิ้งกาก<br><b>สถานการณ์:</b> n/a"
+            },
+            {
+                "province": "ฉะเชิงเทรา",
+                "name": "โรงงานแป้งมัน เขาหินซ้อน",
+                "coords": [13.4542, 101.3006],
+                "info": "<b>บริษัท:</b> โรงงานผลิตแป้งมัน เอส.ซี.อินดัสทรี<br><b>ที่ตั้ง:</b> ฉะเชิงเทรา<br><b>ประเภทโรงงาน:</b> n/a <br><b>สภาพปัญหา:</b> ลักลอบระบายน้ำเสีย<br><b>สถานการณ์:</b> n/a"
+            },
+            {
+                "province": "ปราจีนบุรี",
+                "name": "ล้อทองคำ",
+                "coords": [13.5412, 101.53],
+                "info": "<b>บริษัท:</b> ล้อทองคำ เวสต์ ปราจีนบุรี<br><b>ที่ตั้ง:</b> ปราจีนบุรี<br><b>ประเภทโรงงาน:</b> รง.105 และ 106 <br><b>สภาพปัญหา:</b> ลักลอบฝังกลบของเสีย<br><b>สถานการณ์:</b> ศปก.พล ติดตามตรวจสอบการแก้ไขปัญหา และจะแจ้งผลการตรวจสอบไปยังจังหวัดปราจีนบุรีและหน่วยงานที่เกี่ยวข้อง"
+            },
+            {
+                "province": "ระยอง",
+                "name": "ไทยคอปเปอร์",
+                "coords": [12.4747, 101.1156],
+                "info": "<b>บริษัท:</b> ไทยคอปเปอร์<br><b>ที่ตั้ง:</b> สวนอุตสาหกรรมระยองอินดัสเตรียลปาร์ค<br><b>ประเภทโรงงาน:</b> n/a <br><b>สภาพปัญหา:</b> สารเคมีตกค้าง<br><b>สถานการณ์:</b> n/a"
+            },
+            {
+                "province": "กาญจนบุรี",
+                "name": "หนองปลาไหล กาญจนบุรี",
+                "coords": [14.3745, 99.2437],
+                "info": "<b>บริษัท:</b> หนองปลาไหล กาญจนบุรี<br><b>ที่ตั้ง:</b> พื้นที่หมู่ที่ 5 หนองปลาไหล หนองปรือ กาญจนบุรี<br><b>ประเภทโรงงาน:</b> n/a <br><b>สภาพปัญหา:</b> ลักลอบทิ้งน้ำเสียในพื้นที่หมู่ที่ 5 <br><b>สถานการณ์:</b> ปัจจุบันอยู่ระหว่าง ผอ.กตพ.พิจารณารายงาน"
+            },
+            {
+                "province": "ชลบุรี",
+                "name": "เอเชีย เวสต์",
+                "coords": [13.1922, 101.2606],
+                "info": "<b>บริษัท:</b> เอเชีย เวสต์<br><b>ที่ตั้ง:</b> ชลบุรี<br><b>ประเภทโรงงาน:</b> โรงงานรับกำจัดของเสีย <br><b>สภาพปัญหา:</b> n/a<br><b>สถานการณ์:</b> n/a"
+            },
+            {
+                "province": "สุพรรณบุรี",
+                "name": "หัวโพธิ์ สองพี่น้อง",
+                "coords": [14.27242, 100.00756],
+                "info": "<b>บริษัท:</b> หัวโพธิ์ สองพี่น้อง<br><b>ที่ตั้ง:</b> สุพรรณบุรี<br><b>ประเภทโรงงาน:</b> n/a <br><b>สภาพปัญหา:</b> ลักลอบทิ้งกากของเสียอุตสาหกรรม<br><b>สถานการณ์:</b> n/a"
+            },
+            {
+                "province": "ชลบุรี",
+                "name": "อิฟง",
+                "coords": [13.1809, 101.0818],
+                "info": "<b>บริษัท:</b> อิฟง<br><b>ที่ตั้ง:</b> ชลบุรี<br><b>ประเภทโรงงาน:</b> n/a <br><b>สภาพปัญหา:</b> ปนเปื้อนแคดเมียม<br><b>สถานการณ์:</b> n/a"
+            },
+            {
+                "province": "ราชบุรี",
+                "name": "ศุภฤกษ์ ฟาร์มจอมบึง",
+                "coords": [13.3502, 99.3733],
+                "info": "<b>บริษัท:</b> ศุภฤกษ์ ฟาร์มจอมบึง<br><b>ที่ตั้ง:</b> ราชบุรี<br><b>ประเภทโรงงาน:</b> n/a <br><b>สภาพปัญหา:</b> ฟาร์มหมู<br><b>สถานการณ์:</b> n/a"
+            },
+            {
+                "province": "ระยอง",
+                "name": "นิคมอมตะซิตี้",
+                "coords": [12.5937, 101.0601],
+                "info": "<b>บริษัท:</b> นิคมอมตะซิตี้<br><b>ที่ตั้ง:</b> ระยอง<br><b>ประเภทโรงงาน:</b> n/a <br><b>สภาพปัญหา:</b> ทิ้งกากของเสียอุตสาหกรรม<br><b>สถานการณ์:</b> n/a"
+            },
+            {
+                "province": "พระนครศรีอยุธยา",
+                "name": "คลองสามขวา",
+                "coords": [14.41831, 100.75899],
+                "info": "<b>บริษัท:</b> คลองสามขวา<br><b>ที่ตั้ง:</b> พระนครศรีอยุธยา<br><b>ประเภทโรงงาน:</b> n/a <br><b>สภาพปัญหา:</b> ทิ้งสารเคมีลงคลอง<br><b>สถานการณ์:</b> n/a"
+            },
+            {
+                "province": "ชลบุรี",
+                "name": "แช้มป์เคมิคอล",
+                "coords": [13.3317, 101.073],
+                "info": "<b>บริษัท:</b> แชมป์เคมิคอล<br><b>ที่ตั้ง:</b> พานทอง ชลบุรี<br><b>ประเภทโรงงาน:</b> n/a <br><b>สภาพปัญหา:</b> ทิ้งกากของเสียอุตสาหกรรม<br><b>สถานการณ์:</b> n/a"
+            },
+            {
+                "province": "พระนครศรีอยุธยา",
+                "name": "โกดัง ภาชี",
+                "coords": [14.41831, 100.75899],
+                "info": "<b>บริษัท:</b> โกดัง ภาชี<br><b>ที่ตั้ง:</b> พื้นที่หมู่ที่ 2 ภาชี พระนครศรีอยุธยา<br><b>ประเภทโรงงาน:</b> n/a <br><b>สภาพปัญหา:</b> เพลิงไหม้โกดัง เก็บสารเคมี<br><b>สถานการณ์:</b> อยู่ระหว่างสรุปข้อมูลผลการตรวจสอบให้ สคพ.6 นนทบุรี"
+            },
+            // เพิ่มตำแหน่งอื่นๆ ตามข้อมูลของคุณ
+        ];
+
+        var markers = [];
+
+        // สร้างมาร์คเกอร์และเก็บไว้ในอาร์เรย์
+        locations.forEach(function(location, index) {
+            var marker = L.marker(location.coords).addTo(map);
+            marker.bindPopup(location.name);
+            marker.on('click', function() {
+                showDetails(location, index);
+            });
+            markers.push(marker);
+        });
+
+        var resultsDiv = document.getElementById('results');
+        var detailsDiv = document.getElementById('details');
+        var backToMapButton = document.getElementById('back-to-map');
+        var editFormDiv = document.getElementById('edit-form');
+        var currentEditingIndex = null;
+
+        document.getElementById('search-box').addEventListener('input', function() {
+            var searchTerm = this.value.toLowerCase();
+            resultsDiv.innerHTML = '';
+            detailsDiv.style.display = 'none';
+            backToMapButton.style.display = 'none';
+            editFormDiv.style.display = 'none';
+
+            locations.forEach(function(location, index) {
+                if (location.name.toLowerCase().includes(searchTerm) || location.province.toLowerCase().includes(searchTerm)) {
+                    var item = document.createElement('div');
+                    item.className = 'result-item';
+                    item.textContent = location.name + ' - ' + location.province;
+                    item.addEventListener('click', function() {
+                        showDetails(location, index);
+                        resultsDiv.innerHTML = '';
+                    });
+                    resultsDiv.appendChild(item);
+                }
+            });
+        });
+
+        backToMapButton.addEventListener('click', function() {
+            map.setView([15.8700, 100.9925], 6);
+            detailsDiv.style.display = 'none';
+            resultsDiv.innerHTML = '';
+            this.style.display = 'none';
+            editFormDiv.style.display = 'none';
+        });
+
+        function showDetails(location, index) {
+            detailsDiv.innerHTML = `
+                <p><b>บริษัท:</b> ${location.name}</p>
+                <p><b>ที่ตั้ง:</b> ${location.province}</p>
+                <p><b>ประเภทโรงงาน:</b> ${location.factoryType || 'n/a'}</p>
+                <p><b>สภาพปัญหา:</b> ${location.issue || 'n/a'}</p>
+                <p><b>สถานการณ์:</b> ${location.situation || 'n/a'}</p>
+                <button onclick="editLocation(${index})">แก้ไขข้อมูล</button>
+            `;
+            detailsDiv.style.display = 'block';
+            backToMapButton.style.display = 'block';
+            map.setView(location.coords, 12);
+        }
+
+        function editLocation(index) {
+            currentEditingIndex = index;
+            var location = locations[index];
+            document.getElementById('edit-name').value = location.name;
+            document.getElementById('edit-province').value = location.province;
+            document.getElementById('edit-factoryType').value = location.factoryType || '';
+            document.getElementById('edit-issue').value = location.issue || '';
+            document.getElementById('edit-situation').value = location.situation || '';
+            editFormDiv.style.display = 'block';
+        }
+
+        function saveData() {
+            if (currentEditingIndex !== null) {
+                var location = locations[currentEditingIndex];
+                location.name = document.getElementById('edit-name').value;
+                location.province = document.getElementById('edit-province').value;
+                location.factoryType = document.getElementById('edit-factoryType').value;
+                location.issue = document.getElementById('edit-issue').value;
+                location.situation = document.getElementById('edit-situation').value;
+
+                // อัปเดตมาร์คเกอร์และรายละเอียด
+                markers[currentEditingIndex].bindPopup(location.name);
+                showDetails(location, currentEditingIndex);
+                editFormDiv.style.display = 'none';
+                alert('บันทึกข้อมูลเรียบร้อยแล้ว');
+            }
+        }
+
+        function cancelEdit() {
+            editFormDiv.style.display = 'none';
+        }
+    </script>
+</body>
+</html>
+
+
+
+
